@@ -2,7 +2,8 @@ logoutput: stderr
 
 internal: 0.0.0.0 port=1080
 internal: :: port=1080
-external: ##TUN0##
+external: ##TUN0_IPV4##
+external: ##TUN0_IPV6##
 
 socksmethod: none
 clientmethod: none
@@ -21,4 +22,3 @@ socks pass {
     command: bind connect udpassociate bindreply udpreply
     log: error connect
 }
-
