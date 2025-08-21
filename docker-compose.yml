@@ -8,8 +8,10 @@ services:
     tty: true
     volumes:
       - ./config/com.yuezk.qt:/root/.config/com.yuezk.qt
+      - ./config/gp.conf:/etc/gpservice/gp.conf
     devices:
       - /dev/net/tun
+      - /dev/vhost-net
     cap_add:
       - NET_ADMIN
     ports:
