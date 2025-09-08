@@ -9,6 +9,7 @@ services:
     volumes:
       - ./config/com.yuezk.qt:/root/.config/com.yuezk.qt
       - ./config/gp.conf:/etc/gpservice/gp.conf
+      - ./config/hipreport.sh:/root/hipreport.sh
     devices:
       - /dev/net/tun
       - /dev/vhost-net
@@ -21,6 +22,7 @@ services:
       - globalprotect
     environment:
       - QTWEBENGINE_CHROMIUM_FLAGS=--no-sandbox
+      - APP_VERSION=6.2.1-12
  
 networks:
   globalprotect:
