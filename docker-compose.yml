@@ -3,6 +3,9 @@ version: '2.4'
 services:
   globalprotect:
     image: globalprotect-docker
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     hostname: globalprotect
     restart: unless-stopped
     tty: true
