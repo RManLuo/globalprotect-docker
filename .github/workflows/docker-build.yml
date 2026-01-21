@@ -1,0 +1,74 @@
+name: Multi-Architecture Docker Build
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'screenshots/**'
+      - '.gitignore'
+      - 'LICENSE'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: linux/amd64
+          - runner: ubuntu-latest-arm
+            platform: linux/arm64
+          - runner: macos-latest
+            platform: linux/arm64
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install docker
+          colima start
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        run: |
+          REPO_NAME="${{ github.repository }}"
+          IMAGE="ghcr.io/${REPO_NAME,,}"
+          echo "image=${IMAGE}" >> $GITHUB_OUTPUT
+          echo "tags=${IMAGE}:latest" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            MAKE_JOBS=4
+            CMAKE_BUILD_TYPE=Release

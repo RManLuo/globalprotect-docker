@@ -2,9 +2,7 @@ version: '2.4'
  
 services:
   globalprotect:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    image: ghcr.io/rmanluO/globalprotect-docker:latest
     hostname: globalprotect
     restart: unless-stopped
     tty: true
