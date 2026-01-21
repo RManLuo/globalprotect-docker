@@ -1,3 +1,6 @@
+ARG MAKE_JOBS=12
+ARG CMAKE_BUILD_TYPE=Release
+
 FROM ubuntu:24.04 AS builder
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -16,8 +19,8 @@ COPY . /gpagent
 RUN cd /gpagent && \
     mkdir build && \
     cd build && \
-    cmake -DCMAKE_INSTALL_PREFIX=/gpagent/install .. && \
-    make -j12 && \
+    cmake -DCMAKE_INSTALL_PREFIX=/gpagent/install -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} .. && \
+    make -j${MAKE_JOBS} && \
     make install
 
 FROM ubuntu:24.04
