@@ -1,6 +1,6 @@
 services:
   globalprotect:
-    # image: ghcr.io/rmanluO/globalprotect-docker:latest
+    image: ghcr.io/rmanluo/globalprotect-docker:latest
     build:
       context: .
       dockerfile: docker/Dockerfile
