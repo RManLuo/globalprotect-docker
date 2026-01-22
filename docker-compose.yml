@@ -1,8 +1,9 @@
-version: '2.4'
- 
 services:
   globalprotect:
-    image: ghcr.io/rmanluO/globalprotect-docker:latest
+    # image: ghcr.io/rmanluO/globalprotect-docker:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     hostname: globalprotect
     restart: unless-stopped
     tty: true
@@ -23,6 +24,9 @@ services:
     environment:
       - QTWEBENGINE_CHROMIUM_FLAGS=--no-sandbox
       - APP_VERSION=6.2.1-12
+      # Enable clipboard and mobile keyboard support
+      - NOVNC_ENABLE_CLIPBOARD=1
+      - NOVNC_MOBILE_KEYBOARD=1
  
 networks:
   globalprotect:
