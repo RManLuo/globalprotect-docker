@@ -70,14 +70,33 @@ COPY --from=builder /gpagent/install/ /usr
 ENV GPAGENT_ALLOW_PLAIN_PASSWORD=1
 
 RUN apt-get -y --no-install-recommends install \
-     git
+     git \
+     python3 \
+     python3-pip \
+     python3-numpy
 
 # Setup noVNC to access gpagent via web browser.
+# Using latest version for better clipboard and mobile support
 WORKDIR /usr/share/
-RUN git clone https://github.com/kanaka/noVNC.git
-RUN ln -s /usr/share/noVNC/vnc_lite.html /usr/share/noVNC/index.html
-WORKDIR /usr/share/noVNC/utils/
-RUN git clone https://github.com/kanaka/websockify
+RUN git clone --depth 1 https://github.com/novnc/noVNC.git && \
+    cd noVNC && \
+    ln -s vnc.html index.html
+
+# Install websockify with clipboard support
+RUN pip3 install --no-cache-dir websockify numpy --break-system-packages
+
+# Create symlink for websockify to ensure it's in PATH
+RUN ln -sf /usr/local/bin/websockify /usr/bin/websockify || \
+    ln -sf $(which websockify) /usr/bin/websockify
+
+# Create custom noVNC config for clipboard and mobile keyboard support
+RUN mkdir -p /etc/novnc
+COPY ./docker/novnc-config.js /etc/novnc/
+
+# Integrate custom config into noVNC HTML
+RUN sed -i '/<\/body>/i \    <script src="/novnc-config.js"></script>' /usr/share/noVNC/vnc.html && \
+    cp /etc/novnc/novnc-config.js /usr/share/noVNC/
+
 WORKDIR /root
 
 RUN apt-get -y --no-install-recommends install \
