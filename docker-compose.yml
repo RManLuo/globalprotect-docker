@@ -23,7 +23,7 @@ services:
       - globalprotect
     environment:
       - QTWEBENGINE_CHROMIUM_FLAGS=--no-sandbox
-      - APP_VERSION=6.2.1-12
+      - APP_VERSION=6.3.3
       # Enable clipboard and mobile keyboard support
       - NOVNC_ENABLE_CLIPBOARD=1
       - NOVNC_MOBILE_KEYBOARD=1
