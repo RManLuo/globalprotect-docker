@@ -93,8 +93,8 @@ esac
 
 # If default/made-up values are not accepted, these values may need to be extracted from the
 # HIP report sent by an official GlobalProtect client.
-HOST_ID="deadbeef-dead-beef-dead-beefdeadbeef"
-if [ -z "$APP_VERSION" ]; then APP_VERSION=6.2.1-12; fi
+HOST_ID="0854cb08-06a8-4551-b57b-400e6c76b5d5"
+if [ -z "$APP_VERSION" ]; then APP_VERSION=6.3.3-638; fi
 
 # Timestamp in the format expected by GlobalProtect server
 NOW=$(date +'%m/%d/%Y %H:%M:%S')
@@ -125,7 +125,7 @@ cat <<EOF
 			<network-interface>
 				<entry name="$NETWORK_INTERFACE_NAME">
 					<description>$NETWORK_INTERFACE_DESCRIPTION</description>
-					<mac-address>01-02-03-00-00-01</mac-address>
+					<mac-address>bc:24:11:ad:7d:bs</mac-address>
 					<ip-address>
 						<entry name="$IP"/>
 					</ip-address>
@@ -139,18 +139,10 @@ cat <<EOF
 			<list>
 				<entry>
 					<ProductInfo>
-						<Prod name="McAfee VirusScan Enterprise" version="8.8.0.1804" defver="8682.0" prodType="1" engver="5900.7806" osType="1" vendor="McAfee, Inc." dateday="$DAY" dateyear="$YEAR" datemon="$MONTH">
+						<Prod name="ClamAV" version="1.4.3" defver="27928" prodType="3" engver="" osType="1" vendor="Cisco Systems, Inc." dateday="$DAY" dateyear="$YEAR" datemon="$MONTH">
 						</Prod>
 						<real-time-protection>yes</real-time-protection>
 						<last-full-scan-time>$NOW</last-full-scan-time>
-					</ProductInfo>
-				</entry>
-				<entry>
-					<ProductInfo>
-						<Prod name="Windows Defender" version="4.11.15063.332" defver="1.245.683.0" prodType="1" engver="1.1.13804.0" osType="1" vendor="Microsoft Corp." dateday="$DAY" dateyear="$YEAR" datemon="$MONTH">
-						</Prod>
-						<real-time-protection>no</real-time-protection>
-						<last-full-scan-time>n/a</last-full-scan-time>
 					</ProductInfo>
 				</entry>
 			</list>
