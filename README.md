@@ -1,6 +1,6 @@
 # GlobalProtect VPN client (GUI) in a Docker container
 
-This is an implementation of GlobalProtect VPN client (GUI), which runs in a Docker container and exposes the VPN connection to the users as a SOCKS5 proxy.
+This is an implementation of GlobalProtect VPN client (GUI), which runs in a Docker container and exposes the VPN connection through SOCKS5, Tailscale subnet routes, or Cloudflare One private network routes.
 
 Technically, the Docker container runs a fork of [GlobalProtect-openconnect](https://github.com/yuezk/GlobalProtect-openconnect), redesigned to come as a single executable, without client-server separation.
 
@@ -13,6 +13,8 @@ Technically, the Docker container runs a fork of [GlobalProtect-openconnect](htt
 - Supports automatically selecting the preferred gateway from the multiple gateways.
 - Supports switching gateway from the system tray menu manually.
 - Memorizes credentials and authenticates automatically without a dialog.
+- Supports unattended 1Password-based login and reconnect for SAML flows.
+- Exposes the VPN through three connection modes: local SOCKS5, Tailscale subnet routing, or Cloudflare One private routes.
 
 # Docker
  
