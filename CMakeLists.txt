@@ -87,4 +87,8 @@ if(BUILD_TESTING)
     add_gpagent_test(credentialprovider_test tests/test_credentialprovider.cpp src/credentialprovider.cpp)
     add_gpagent_test(autoreconnectpolicy_test tests/test_autoreconnectpolicy.cpp src/autoreconnectpolicy.cpp)
     add_gpagent_test(samlloginautomation_test tests/test_samlloginautomation.cpp src/samlloginautomation.cpp)
+
+    if(UNIX)
+        add_test(NAME gpagent_supervised_test COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_gpagent_supervised.sh)
+    endif()
 endif()
