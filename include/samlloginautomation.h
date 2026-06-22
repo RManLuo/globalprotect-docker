@@ -10,7 +10,7 @@ struct SamlLoginSelectors
     std::string totp;
     std::string submit;
 
-    bool isComplete() const;
+    bool hasAnyField() const;
 };
 
 class SamlLoginAutomation
@@ -23,6 +23,8 @@ public:
                             const std::string &password,
                             const std::string &totp,
                             std::string *error = nullptr) const;
+
+    static bool isRejectedLoginPage(const std::string &html);
 
 private:
     SamlLoginSelectors m_selectors;

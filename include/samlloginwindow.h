@@ -5,6 +5,7 @@
 #include <QtGui/QCloseEvent>
 #include <QtWidgets/QDialog>
 
+#include "credentialprovider.h"
 #include "enhancedwebview.h"
 
 class SAMLLoginWindow : public QDialog
@@ -27,13 +28,20 @@ private slots:
 
 private:
     static const auto MAX_WAIT_TIME { 10 * 1000 };
+    static const auto AUTOMATED_LOGIN_RETRY_DELAY { 1000 };
+    static const auto MAX_AUTOMATED_LOGIN_ATTEMPTS { 20 };
 
     bool failed { false };
+    bool automatedLoginRetryScheduled { false };
+    bool credentialsLoaded { false };
+    int automatedLoginAttempts { 0 };
+    OnePasswordCredentials credentials;
     EnhancedWebView *webView { nullptr };
     QMap<QString, QString> samlResult;
 
     void closeEvent(QCloseEvent *event);
     void handleHtml(const QString &html);
+    void retryAutomatedLogin();
     bool tryAutomatedLogin();
 
     static QString parseTag(const QString &tag, const QString &html);
