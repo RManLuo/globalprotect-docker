@@ -1,10 +1,12 @@
 #include <QtNetwork/QNetworkReply>
+#include <QtCore/QTimer>
 #include <plog/Log.h>
 
 #include "portalauthenticator.h"
 #include "gphelper.h"
 #include "standardloginwindow.h"
 #include "samlloginwindow.h"
+#include "samlloginautomation.h"
 #include "loginparams.h"
 #include "preloginresponse.h"
 #include "portalconfigresponse.h"
@@ -164,6 +166,16 @@ void PortalAuthenticator::onSAMLLoginSuccess(const QMap<QString, QString> samlRe
 
 void PortalAuthenticator::onSAMLLoginFail(const QString &code, const QString &msg)
 {
+    if (code == "ERR004" && attempts < MAX_ATTEMPTS) {
+        const int delaySeconds = SamlLoginAutomation::throttleSleepSeconds();
+        LOGW << "Identity provider throttled portal SAML login; restarting from prelogin in "
+             << delaySeconds << " seconds";
+        QTimer::singleShot(delaySeconds * 1000, this, [this]() {
+            authenticate();
+        });
+        return;
+    }
+
     if (code == "ERR002" && attempts < MAX_ATTEMPTS) {
         LOGI << "Failed to authenticate, trying to re-authenticate...";
         authenticate();

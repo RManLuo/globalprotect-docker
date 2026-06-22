@@ -27,6 +27,8 @@ services:
       # Enable clipboard and mobile keyboard support
       - NOVNC_ENABLE_CLIPBOARD=1
       - NOVNC_MOBILE_KEYBOARD=1
+      # Optional: set in a local override to pre-fill the portal on first run.
+      # - GPAGENT_PORTAL=<vpn-portal-host>
       # Uncomment and configure these for unattended 1Password-based reconnects.
       # - GPAGENT_AUTO_RECONNECT=1
       # - GPAGENT_OP_ITEM=GlobalProtect
@@ -36,6 +38,7 @@ services:
       # - GPAGENT_LOGIN_PASSWORD_SELECTOR=#password
       # - GPAGENT_LOGIN_TOTP_SELECTOR=#totp
       # - GPAGENT_LOGIN_SUBMIT_SELECTOR=button[type=submit]
+      # - GPAGENT_SAML_THROTTLE_SLEEP_SECONDS=300
     # secrets:
     #   - op_service_account_token
  

@@ -65,7 +65,8 @@ RUN sudo ssh-keygen -t rsa -q -f "/root/.ssh/id_rsa" -N "" && \
 COPY ./docker/supervisord.conf /etc/
 COPY ./docker/supervisor-log-prefix.sh /
 COPY ./docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh /supervisor-log-prefix.sh
+COPY ./docker/gpagent-supervised.sh /gpagent-supervised.sh
+RUN chmod +x /entrypoint.sh /supervisor-log-prefix.sh /gpagent-supervised.sh
 
 COPY --from=builder /gpagent/install/ /usr
 

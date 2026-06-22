@@ -66,5 +66,38 @@ int main()
                 "normal password page should not be treated as rejected");
     }
 
+    {
+        require(SamlLoginAutomation::isTooManyAttemptsPage("<main>Too many attempts. Try again later.</main>"),
+                "throttled login page should be detected");
+        require(SamlLoginAutomation::isTooManyAttemptsPage("<main>Too many failed attempts</main>"),
+                "failed-attempt throttling page should be detected");
+        require(SamlLoginAutomation::isTooManyAttemptsPage("<main>Your account is temporarily locked due to too many sign-in attempts</main>"),
+                "temporary lockout page should be detected");
+        require(!SamlLoginAutomation::isTooManyAttemptsPage("<main>Unable to sign in</main>"),
+                "bad credentials page should not be treated as throttling");
+        require(!SamlLoginAutomation::isTooManyAttemptsPage("<main>Verify with your password</main>"),
+                "normal password page should not be treated as throttling");
+    }
+
+    {
+        unsetenv("GPAGENT_SAML_THROTTLE_SLEEP_SECONDS");
+        require(SamlLoginAutomation::throttleSleepSeconds() == 300,
+                "default throttle sleep should be 300 seconds");
+
+        setenv("GPAGENT_SAML_THROTTLE_SLEEP_SECONDS", "7", 1);
+        require(SamlLoginAutomation::throttleSleepSeconds() == 7,
+                "valid throttle sleep override should be used");
+
+        setenv("GPAGENT_SAML_THROTTLE_SLEEP_SECONDS", "0", 1);
+        require(SamlLoginAutomation::throttleSleepSeconds() == 300,
+                "zero throttle sleep should fall back to default");
+
+        setenv("GPAGENT_SAML_THROTTLE_SLEEP_SECONDS", "invalid", 1);
+        require(SamlLoginAutomation::throttleSleepSeconds() == 300,
+                "invalid throttle sleep should fall back to default");
+
+        unsetenv("GPAGENT_SAML_THROTTLE_SLEEP_SECONDS");
+    }
+
     return 0;
 }

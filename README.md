@@ -65,6 +65,7 @@ services:
   globalprotect:
     environment:
       - GPAGENT_AUTO_RECONNECT=1
+      - GPAGENT_PORTAL=<vpn-portal-host>
       - GPAGENT_OP_ITEM=<1password-item-title-or-id>
       - GPAGENT_OP_VAULT=<1password-vault-name-or-id>
       - OP_SERVICE_ACCOUNT_TOKEN_FILE=/run/secrets/op_service_account_token
@@ -72,6 +73,7 @@ services:
       - GPAGENT_LOGIN_PASSWORD_SELECTOR=<password-input-css-selector>
       - GPAGENT_LOGIN_TOTP_SELECTOR=<totp-input-css-selector>
       - GPAGENT_LOGIN_SUBMIT_SELECTOR=<submit-button-css-selector>
+      - GPAGENT_SAML_THROTTLE_SLEEP_SECONDS=300
     secrets:
       - op_service_account_token
 
@@ -80,9 +82,11 @@ secrets:
     file: ./.secrets/op_service_account_token
 ```
 
-The selectors must match your identity-provider login pages. Use browser developer tools in the noVNC window to inspect the username, password, TOTP, and submit controls. Common examples are `#username`, `input[name="identifier"]`, `input[type="password"]`, `input[autocomplete="one-time-code"]`, and `button[type="submit"]`.
+`GPAGENT_PORTAL` pre-fills the portal and starts the first connection attempt. The selectors must match your identity-provider login pages. Use browser developer tools in the noVNC window to inspect the username, password, TOTP, and submit controls. Common examples are `#username`, `input[name="identifier"]`, `input[type="password"]`, `input[autocomplete="one-time-code"]`, and `button[type="submit"]`.
 
 Some identity providers show username, password, and TOTP on separate screens. In that case, keep all relevant selectors configured; the automation fills only the visible matching field on each page.
+
+If the identity provider reports too many login attempts, the container waits for `GPAGENT_SAML_THROTTLE_SLEEP_SECONDS` seconds and restarts login from the beginning with a fresh prelogin request. The default is 300 seconds.
 
 ### Monash login template
 
@@ -93,6 +97,7 @@ services:
   globalprotect:
     environment:
       - GPAGENT_AUTO_RECONNECT=1
+      - GPAGENT_PORTAL=vpn.gp.monash.edu
       - GPAGENT_OP_ITEM=<your-1password-item-title-or-id>
       - GPAGENT_OP_VAULT=<your-1password-vault-name-or-id>
       - OP_SERVICE_ACCOUNT_TOKEN_FILE=/run/secrets/op_service_account_token
@@ -100,6 +105,7 @@ services:
       - GPAGENT_LOGIN_PASSWORD_SELECTOR=input[name="credentials.passcode"]
       - GPAGENT_LOGIN_TOTP_SELECTOR=input[name="credentials.passcode"]
       - GPAGENT_LOGIN_SUBMIT_SELECTOR=input[type="submit"]
+      - GPAGENT_SAML_THROTTLE_SLEEP_SECONDS=60
     secrets:
       - op_service_account_token
 
@@ -108,13 +114,7 @@ secrets:
     file: ./.secrets/op_service_account_token
 ```
 
-Set the portal in the app UI to:
-
-```
-vpn.gp.monash.edu
-```
-
-The password and TOTP pages both use `input[name="credentials.passcode"]`; the automation decides which value to fill based on the visible page context.
+The password and TOTP pages both use `input[name="credentials.passcode"]`; the automation decides which value to fill based on the visible page context. If the identity-provider page changes or automation cannot find a field, open noVNC at `http://localhost:8083` and complete or inspect the login there.
 
 ### Verify 1Password access
 

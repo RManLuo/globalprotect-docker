@@ -1,4 +1,5 @@
 #include <QtNetwork/QNetworkReply>
+#include <QtCore/QTimer>
 #include <QtCore/QRegularExpression>
 #include <QtCore/QRegularExpressionMatch>
 #include <plog/Log.h>
@@ -8,6 +9,7 @@
 #include "loginparams.h"
 #include "preloginresponse.h"
 #include "challengedialog.h"
+#include "samlloginautomation.h"
 
 using namespace gpclient::helper;
 
@@ -227,6 +229,16 @@ void GatewayAuthenticator::onSAMLLoginSuccess(const QMap<QString, QString> &saml
 
 void GatewayAuthenticator::onSAMLLoginFail(const QString &code, const QString &msg)
 {
+    if (code == "ERR004") {
+        const int delaySeconds = SamlLoginAutomation::throttleSleepSeconds();
+        LOGW << "Identity provider throttled gateway SAML login; restarting from prelogin in "
+             << delaySeconds << " seconds";
+        QTimer::singleShot(delaySeconds * 1000, this, [this]() {
+            doAuth();
+        });
+        return;
+    }
+
     emit fail(msg);
 }
 
