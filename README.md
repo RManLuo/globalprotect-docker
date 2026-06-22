@@ -52,7 +52,13 @@ Never commit `.secrets/`, service account tokens, generated TOTP codes, VPN cook
 
 ### Local Compose override
 
-Create an untracked override file, for example `docker-compose.auto-reconnect.yml`:
+Copy the committed example to an untracked local override file, then replace the placeholders:
+
+```bash
+cp docker-compose.auto-reconnect.example.yml docker-compose.auto-reconnect.yml
+```
+
+The local file should look like this:
 
 ```yaml
 services:
@@ -80,7 +86,7 @@ Some identity providers show username, password, and TOTP on separate screens. I
 
 ### Monash login template
 
-For Monash GlobalProtect, keep the personal values as placeholders and store this only in your local override:
+For Monash GlobalProtect, `docker-compose.auto-reconnect.example.yml` already includes the current selector template. Keep the personal values as placeholders in git and fill them only in your local `docker-compose.auto-reconnect.yml`:
 
 ```yaml
 services:
