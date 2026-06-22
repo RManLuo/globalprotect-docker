@@ -1,11 +1,11 @@
 #include <QtWidgets/QVBoxLayout>
+#include <QtCore/QTimer>
 #include <QtWebEngineWidgets/QWebEngineProfile>
 #include <QtWebEngineWidgets/QWebEngineView>
 #include <QWebEngineCookieStore>
 #include <plog/Log.h>
 
 #include "samlloginwindow.h"
-#include "credentialprovider.h"
 #include "samlloginautomation.h"
 
 SAMLLoginWindow::SAMLLoginWindow(QWidget *parent)
@@ -32,6 +32,7 @@ SAMLLoginWindow::SAMLLoginWindow(QWidget *parent)
         }
         LOGI << "MAX_WAIT_TIME exceeded, display the login window.";
         this->show();
+        this->retryAutomatedLogin();
     });
 }
 
@@ -96,10 +97,7 @@ void SAMLLoginWindow::checkSamlResult(QString username, QString preloginCookie, 
     // Check the SAML result
     if (samlResult.contains("username")
             && (samlResult.contains("preloginCookie") || samlResult.contains("userAuthCookie"))) {
-        LOGI << "Got the SAML authentication information successfully. "
-             << "username: " << samlResult.value("username")
-             << ", preloginCookie: " << samlResult.value("preloginCookie")
-             << ", userAuthCookie: " << samlResult.value("userAuthCookie");
+        LOGI << "Got the SAML authentication information successfully.";
 
         emit success(samlResult);
         accept();
@@ -115,6 +113,30 @@ void SAMLLoginWindow::onLoadFinished()
      webView->page()->toHtml([this] (const QString &html) { this->handleHtml(html); });
 }
 
+void SAMLLoginWindow::retryAutomatedLogin()
+{
+    if (failed || automatedLoginRetryScheduled || automatedLoginAttempts >= MAX_AUTOMATED_LOGIN_ATTEMPTS) {
+        return;
+    }
+
+    automatedLoginRetryScheduled = true;
+    QTimer::singleShot(AUTOMATED_LOGIN_RETRY_DELAY, this, [this]() {
+        automatedLoginRetryScheduled = false;
+        if (failed) {
+            return;
+        }
+
+        if (webView->page()->url().scheme() == "chrome-error") {
+            automatedLoginAttempts++;
+            webView->reload();
+            retryAutomatedLogin();
+            return;
+        }
+
+        tryAutomatedLogin();
+    });
+}
+
 bool SAMLLoginWindow::tryAutomatedLogin()
 {
     const QByteArray enabled = qgetenv("GPAGENT_AUTO_RECONNECT");
@@ -122,15 +144,19 @@ bool SAMLLoginWindow::tryAutomatedLogin()
         return false;
     }
 
-    std::string error;
-    const auto credentials = OnePasswordCredentialProvider().fetch(&error);
-    if (!credentials.isValid()) {
-        if (!error.empty()) {
-            LOGW << "1Password SAML automation skipped: " << QString::fromStdString(error);
+    if (!credentialsLoaded) {
+        std::string credentialError;
+        credentials = OnePasswordCredentialProvider().fetch(&credentialError);
+        credentialsLoaded = true;
+        if (!credentials.isValid()) {
+            if (!credentialError.empty()) {
+                LOGW << "1Password SAML automation skipped: " << QString::fromStdString(credentialError);
+            }
+            return false;
         }
-        return false;
     }
 
+    std::string error;
     const auto script = SamlLoginAutomation().buildScript(credentials.username, credentials.password, credentials.totp, &error);
     if (script.empty()) {
         if (!error.empty()) {
@@ -139,11 +165,24 @@ bool SAMLLoginWindow::tryAutomatedLogin()
         return false;
     }
 
+    automatedLoginAttempts++;
     webView->page()->runJavaScript(QString::fromStdString(script), [this](const QVariant &result) {
         if (!result.toBool()) {
-            LOGW << "SAML automation script did not find all configured fields";
-            webView->page()->toHtml([this] (const QString &html) { this->handleHtml(html); });
+            LOGW << "SAML automation script did not find configured fields";
+            webView->page()->toHtml([this] (const QString &html) {
+                if (SamlLoginAutomation::isRejectedLoginPage(html.toStdString())) {
+                    LOGW << "SAML automation stopped after identity provider rejected the submitted credentials";
+                    failed = true;
+                    emit fail("ERR003", "Identity provider rejected the submitted credentials.");
+                    return;
+                }
+                retryAutomatedLogin();
+                this->handleHtml(html);
+            });
+            return;
         }
+
+        retryAutomatedLogin();
     });
     return true;
 }

@@ -42,8 +42,8 @@ int main()
 
     const std::string fakeOp = writeFakeOp(
         "case \"$*\" in\n"
-        "  *\"--fields username\"*) echo alice ;;\n"
-        "  *\"--fields password\"*) echo correct-horse-battery-staple ;;\n"
+        "  *\"--fields label=username --reveal\"*) echo alice ;;\n"
+        "  *\"--fields label=password --reveal\"*) echo correct-horse-battery-staple ;;\n"
         "  *\"--otp\"*) echo 123456 ;;\n"
         "  *) echo unexpected >&2; exit 2 ;;\n"
         "esac");

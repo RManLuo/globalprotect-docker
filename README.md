@@ -30,10 +30,17 @@ When the connection is established, configure your applications to use the provi
 
 ## Optional 1Password auto-reconnect
 
-The container can reconnect automatically after an unexpected VPN disconnect by reading username, password, and TOTP from 1Password CLI. This is disabled by default.
+The container can reconnect automatically after an unexpected VPN disconnect by reading the login username, password, and TOTP from 1Password CLI. This is disabled by default and should be configured with local-only files.
 
-1. Create a 1Password service account with read-only access to the VPN login item.
-2. Store the token outside git:
+### 1Password item requirements
+
+Create a 1Password Login item that contains:
+
+- `username`: your identity-provider username.
+- `password`: your identity-provider password.
+- One-time password/TOTP field: the same TOTP seed used by your authenticator app.
+
+Create a 1Password service account with read-only access to only the vault that contains this item. Store the service account token outside git:
 
 ```
 mkdir -p .secrets
@@ -41,18 +48,89 @@ printf '%s' 'ops_...' > .secrets/op_service_account_token
 chmod 600 .secrets/op_service_account_token
 ```
 
-3. Uncomment the `GPAGENT_AUTO_RECONNECT`, `GPAGENT_OP_*`, selector, and `secrets` examples in `docker-compose.yml`.
-
-The SAML selectors must match your identity-provider page:
-
-```
-GPAGENT_LOGIN_USERNAME_SELECTOR=#username
-GPAGENT_LOGIN_PASSWORD_SELECTOR=#password
-GPAGENT_LOGIN_TOTP_SELECTOR=#totp
-GPAGENT_LOGIN_SUBMIT_SELECTOR=button[type=submit]
-```
-
 Never commit `.secrets/`, service account tokens, generated TOTP codes, VPN cookies, or real credentials.
+
+### Local Compose override
+
+Create an untracked override file, for example `docker-compose.auto-reconnect.yml`:
+
+```yaml
+services:
+  globalprotect:
+    environment:
+      - GPAGENT_AUTO_RECONNECT=1
+      - GPAGENT_OP_ITEM=<1password-item-title-or-id>
+      - GPAGENT_OP_VAULT=<1password-vault-name-or-id>
+      - OP_SERVICE_ACCOUNT_TOKEN_FILE=/run/secrets/op_service_account_token
+      - GPAGENT_LOGIN_USERNAME_SELECTOR=<username-input-css-selector>
+      - GPAGENT_LOGIN_PASSWORD_SELECTOR=<password-input-css-selector>
+      - GPAGENT_LOGIN_TOTP_SELECTOR=<totp-input-css-selector>
+      - GPAGENT_LOGIN_SUBMIT_SELECTOR=<submit-button-css-selector>
+    secrets:
+      - op_service_account_token
+
+secrets:
+  op_service_account_token:
+    file: ./.secrets/op_service_account_token
+```
+
+The selectors must match your identity-provider login pages. Use browser developer tools in the noVNC window to inspect the username, password, TOTP, and submit controls. Common examples are `#username`, `input[name="identifier"]`, `input[type="password"]`, `input[autocomplete="one-time-code"]`, and `button[type="submit"]`.
+
+Some identity providers show username, password, and TOTP on separate screens. In that case, keep all relevant selectors configured; the automation fills only the visible matching field on each page.
+
+### Monash login template
+
+For Monash GlobalProtect, keep the personal values as placeholders and store this only in your local override:
+
+```yaml
+services:
+  globalprotect:
+    environment:
+      - GPAGENT_AUTO_RECONNECT=1
+      - GPAGENT_OP_ITEM=<your-1password-item-title-or-id>
+      - GPAGENT_OP_VAULT=<your-1password-vault-name-or-id>
+      - OP_SERVICE_ACCOUNT_TOKEN_FILE=/run/secrets/op_service_account_token
+      - GPAGENT_LOGIN_USERNAME_SELECTOR=input[name="identifier"]
+      - GPAGENT_LOGIN_PASSWORD_SELECTOR=input[name="credentials.passcode"]
+      - GPAGENT_LOGIN_TOTP_SELECTOR=input[name="credentials.passcode"]
+      - GPAGENT_LOGIN_SUBMIT_SELECTOR=input[type="submit"]
+    secrets:
+      - op_service_account_token
+
+secrets:
+  op_service_account_token:
+    file: ./.secrets/op_service_account_token
+```
+
+Set the portal in the app UI to:
+
+```
+vpn.gp.monash.edu
+```
+
+The password and TOTP pages both use `input[name="credentials.passcode"]`; the automation decides which value to fill based on the visible page context.
+
+### Verify 1Password access
+
+Check the configured item before starting the container. Do not print the password or TOTP value in logs or issue reports.
+
+```bash
+export OP_SERVICE_ACCOUNT_TOKEN="$(cat .secrets/op_service_account_token)"
+op item get "<1password-item-title-or-id>" --vault "<1password-vault-name-or-id>" --fields label=username --reveal
+op item get "<1password-item-title-or-id>" --vault "<1password-vault-name-or-id>" --fields label=password --reveal | wc -c
+op item get "<1password-item-title-or-id>" --vault "<1password-vault-name-or-id>" --otp | wc -c
+```
+
+The password command intentionally uses `--fields label=password --reveal`. Without `--reveal`, 1Password may return a concealed placeholder instead of the real password.
+
+### Run with auto-login enabled
+
+```
+docker compose -f docker-compose.yml -f docker-compose.auto-reconnect.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.auto-reconnect.yml logs -f globalprotect
+```
+
+The VPN is ready when the logs show that `openconnect` established the tunnel and the SOCKS5 proxy is listening on `127.0.0.1:10081`. If login fails, inspect the noVNC window at `http://localhost:8083`, adjust the selectors in the local override, and restart the container.
 
 ## Manual Installation
 

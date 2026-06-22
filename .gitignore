@@ -4,3 +4,4 @@ config/com.yuezk.qt/GPClient.conf
 .secrets/
 .env.local
 docker-compose.auto-reconnect.yml
+tmp/

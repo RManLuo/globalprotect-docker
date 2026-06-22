@@ -136,7 +136,8 @@ std::string OnePasswordCredentialProvider::readField(const std::string &field, s
 {
     auto args = baseOpArgs();
     args.push_back("--fields");
-    args.push_back(field);
+    args.push_back("label=" + field);
+    args.push_back("--reveal");
 
     std::string output;
     if (!runProcess(args, &output)) {
