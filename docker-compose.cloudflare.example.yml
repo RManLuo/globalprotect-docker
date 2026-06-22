@@ -1,0 +1,14 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    network_mode: "service:globalprotect"
+    depends_on:
+      - globalprotect
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token-file /run/secrets/cloudflare_tunnel_token
+    secrets:
+      - cloudflare_tunnel_token
+
+secrets:
+  cloudflare_tunnel_token:
+    file: ${CLOUDFLARED_TUNNEL_TOKEN_FILE:-./.secrets/cloudflare_tunnel_token}

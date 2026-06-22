@@ -2,6 +2,7 @@ config/com.yuezk.qt/GPClient.conf
 .DS_Store
 .worktrees/
 .secrets/
+.tailscale-state/
 .env.local
-docker-compose.auto-reconnect.yml
+docker-compose.local.yml
 tmp/
