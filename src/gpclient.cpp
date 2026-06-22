@@ -1,4 +1,5 @@
 #include <QtGui/QIcon>
+#include <QtCore/QTimer>
 #include <plog/Log.h>
 
 #include "gpclient.h"
@@ -11,11 +12,21 @@
 
 using namespace gpclient::helper;
 
+namespace
+{
+bool autoReconnectEnabled()
+{
+    const auto value = qgetenv("GPAGENT_AUTO_RECONNECT");
+    return value == "1" || value.toLower() == "true";
+}
+}
+
 GPClient::GPClient(QWidget *parent, IVpn *vpn)
     : QMainWindow(parent)
     , ui(new Ui::GPClient)
     , vpn(vpn)
     , settingsDialog(new SettingsDialog(this))
+    , autoReconnectPolicy(autoReconnectEnabled())
 {
     ui->setupUi(this);
 
@@ -264,6 +275,8 @@ void GPClient::doConnect()
 
         ui->statusLabel->setText("Disconnecting...");
         updateConnectionStatus(VpnStatus::pending);
+        isExplicitDisconnect = true;
+        autoReconnectPolicy.reset();
         vpn->disconnect();
     }
 }
@@ -481,6 +494,8 @@ void GPClient::setCurrentGateway(const GPGateway gateway)
 
 void GPClient::reset()
 {
+    isExplicitDisconnect = true;
+    autoReconnectPolicy.reset();
     settings::clear();
     populateGatewayMenu();
     ui->portalInput->clear();
@@ -488,12 +503,16 @@ void GPClient::reset()
 
 void GPClient::quit()
 {
+    isExplicitDisconnect = true;
+    autoReconnectPolicy.reset();
     vpn->disconnect();
     QApplication::quit();
 }
 
 void GPClient::onVPNConnected()
 {
+    isExplicitDisconnect = false;
+    autoReconnectPolicy.reset();
     updateConnectionStatus(VpnStatus::connected);
 }
 
@@ -504,7 +523,31 @@ void GPClient::onVPNDisconnected()
     if (isSwitchingGateway) {
         gatewayLogin();
         isSwitchingGateway = false;
+        isExplicitDisconnect = false;
+        return;
     }
+
+    scheduleAutoReconnect();
+    isExplicitDisconnect = false;
+}
+
+void GPClient::scheduleAutoReconnect()
+{
+    if (portal().isEmpty() || !autoReconnectPolicy.shouldRetry(isExplicitDisconnect)) {
+        return;
+    }
+
+    const int delaySeconds = autoReconnectPolicy.nextDelaySeconds();
+    autoReconnectPolicy.recordAttempt();
+
+    LOGI << "Scheduling automatic reconnect in " << delaySeconds << " seconds";
+    ui->statusLabel->setText(QString("Reconnecting in %1s...").arg(delaySeconds));
+
+    QTimer::singleShot(delaySeconds * 1000, this, [this]() {
+        if (!connected()) {
+            doConnect();
+        }
+    });
 }
 
 void GPClient::onVPNError(QString errorMessage)

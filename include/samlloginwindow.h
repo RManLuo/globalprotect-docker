@@ -34,6 +34,7 @@ private:
 
     void closeEvent(QCloseEvent *event);
     void handleHtml(const QString &html);
+    bool tryAutomatedLogin();
 
     static QString parseTag(const QString &tag, const QString &html);
 };

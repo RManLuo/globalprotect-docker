@@ -29,6 +29,7 @@ private:
 
     void closeEvent(QCloseEvent *event);
     void autocomplete();
+    bool autocompleteFromOnePassword();
 };
 
 #endif // STANDARDLOGINWINDOW_H

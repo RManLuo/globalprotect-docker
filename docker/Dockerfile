@@ -2,7 +2,7 @@ ARG MAKE_JOBS=12
 ARG CMAKE_BUILD_TYPE=Release
 
 FROM ubuntu:24.04 AS builder
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update
 
@@ -24,7 +24,9 @@ RUN cd /gpagent && \
     make install
 
 FROM ubuntu:24.04
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
+
+COPY --from=1password/op:2 /usr/local/bin/op /usr/local/bin/op
 
 RUN apt-get update
 
@@ -62,6 +64,8 @@ RUN sudo ssh-keygen -t rsa -q -f "/root/.ssh/id_rsa" -N "" && \
 # We use supervisor instead of systemd to start multiple applications.
 COPY ./docker/supervisord.conf /etc/
 COPY ./docker/supervisor-log-prefix.sh /
+COPY ./docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh /supervisor-log-prefix.sh
 
 COPY --from=builder /gpagent/install/ /usr
 
@@ -111,5 +115,5 @@ COPY ./docker/danted.sh /
 # Start supervisord
 EXPOSE 8080
 EXPOSE 8083
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
-

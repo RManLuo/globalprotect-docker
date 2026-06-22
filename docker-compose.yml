@@ -27,8 +27,23 @@ services:
       # Enable clipboard and mobile keyboard support
       - NOVNC_ENABLE_CLIPBOARD=1
       - NOVNC_MOBILE_KEYBOARD=1
+      # Uncomment and configure these for unattended 1Password-based reconnects.
+      # - GPAGENT_AUTO_RECONNECT=1
+      # - GPAGENT_OP_ITEM=GlobalProtect
+      # - GPAGENT_OP_VAULT=Private
+      # - OP_SERVICE_ACCOUNT_TOKEN_FILE=/run/secrets/op_service_account_token
+      # - GPAGENT_LOGIN_USERNAME_SELECTOR=#username
+      # - GPAGENT_LOGIN_PASSWORD_SELECTOR=#password
+      # - GPAGENT_LOGIN_TOTP_SELECTOR=#totp
+      # - GPAGENT_LOGIN_SUBMIT_SELECTOR=button[type=submit]
+    # secrets:
+    #   - op_service_account_token
  
 networks:
   globalprotect:
     external: false
     name: globalprotect
+
+# secrets:
+#   op_service_account_token:
+#     file: ./.secrets/op_service_account_token

@@ -5,6 +5,8 @@
 #include <plog/Log.h>
 
 #include "samlloginwindow.h"
+#include "credentialprovider.h"
+#include "samlloginautomation.h"
 
 SAMLLoginWindow::SAMLLoginWindow(QWidget *parent)
     : QDialog(parent)
@@ -107,7 +109,43 @@ void SAMLLoginWindow::checkSamlResult(QString username, QString preloginCookie, 
 void SAMLLoginWindow::onLoadFinished()
 {
      LOGI << "Load finished " << webView->page()->url().toString();
+     if (tryAutomatedLogin()) {
+         return;
+     }
      webView->page()->toHtml([this] (const QString &html) { this->handleHtml(html); });
+}
+
+bool SAMLLoginWindow::tryAutomatedLogin()
+{
+    const QByteArray enabled = qgetenv("GPAGENT_AUTO_RECONNECT");
+    if (enabled != "1" && enabled.toLower() != "true") {
+        return false;
+    }
+
+    std::string error;
+    const auto credentials = OnePasswordCredentialProvider().fetch(&error);
+    if (!credentials.isValid()) {
+        if (!error.empty()) {
+            LOGW << "1Password SAML automation skipped: " << QString::fromStdString(error);
+        }
+        return false;
+    }
+
+    const auto script = SamlLoginAutomation().buildScript(credentials.username, credentials.password, credentials.totp, &error);
+    if (script.empty()) {
+        if (!error.empty()) {
+            LOGW << "SAML automation skipped: " << QString::fromStdString(error);
+        }
+        return false;
+    }
+
+    webView->page()->runJavaScript(QString::fromStdString(script), [this](const QVariant &result) {
+        if (!result.toBool()) {
+            LOGW << "SAML automation script did not find all configured fields";
+            webView->page()->toHtml([this] (const QString &html) { this->handleHtml(html); });
+        }
+    });
+    return true;
 }
 
 void SAMLLoginWindow::handleHtml(const QString &html)

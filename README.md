@@ -28,6 +28,32 @@ When the connection is established, configure your applications to use the provi
 
 <img src="screenshots/screenshot3.png">
 
+## Optional 1Password auto-reconnect
+
+The container can reconnect automatically after an unexpected VPN disconnect by reading username, password, and TOTP from 1Password CLI. This is disabled by default.
+
+1. Create a 1Password service account with read-only access to the VPN login item.
+2. Store the token outside git:
+
+```
+mkdir -p .secrets
+printf '%s' 'ops_...' > .secrets/op_service_account_token
+chmod 600 .secrets/op_service_account_token
+```
+
+3. Uncomment the `GPAGENT_AUTO_RECONNECT`, `GPAGENT_OP_*`, selector, and `secrets` examples in `docker-compose.yml`.
+
+The SAML selectors must match your identity-provider page:
+
+```
+GPAGENT_LOGIN_USERNAME_SELECTOR=#username
+GPAGENT_LOGIN_PASSWORD_SELECTOR=#password
+GPAGENT_LOGIN_TOTP_SELECTOR=#totp
+GPAGENT_LOGIN_SUBMIT_SELECTOR=button[type=submit]
+```
+
+Never commit `.secrets/`, service account tokens, generated TOTP codes, VPN cookies, or real credentials.
+
 ## Manual Installation
 
 Prerequisites:
@@ -64,4 +90,3 @@ sudo ./gpagent
 ## Troubleshooting
 
 Run `docker-compose logs` in the Terminal and collect the logs.
-
