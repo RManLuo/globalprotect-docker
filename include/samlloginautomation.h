@@ -25,6 +25,8 @@ public:
                             std::string *error = nullptr) const;
 
     static bool isRejectedLoginPage(const std::string &html);
+    static bool isTooManyAttemptsPage(const std::string &html);
+    static int throttleSleepSeconds();
 
 private:
     SamlLoginSelectors m_selectors;

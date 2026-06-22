@@ -1,12 +1,16 @@
 #include "samlloginautomation.h"
 
 #include <algorithm>
+#include <cerrno>
+#include <climits>
 #include <cstdlib>
 #include <sstream>
 #include <utility>
 
 namespace
 {
+constexpr int DEFAULT_SAML_THROTTLE_SLEEP_SECONDS = 300;
+
 std::string getenvOrEmpty(const char *name)
 {
     const char *value = std::getenv(name);
@@ -42,6 +46,20 @@ std::string jsString(const std::string &value)
     }
     escaped.push_back('"');
     return escaped;
+}
+
+std::string lowerCopy(const std::string &html)
+{
+    std::string lower = html;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return lower;
+}
+
+bool contains(const std::string &text, const char *needle)
+{
+    return text.find(needle) != std::string::npos;
 }
 }
 
@@ -106,9 +124,37 @@ std::string SamlLoginAutomation::buildScript(const std::string &username,
 
 bool SamlLoginAutomation::isRejectedLoginPage(const std::string &html)
 {
-    std::string lower = html;
-    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
+    const std::string lower = lowerCopy(html);
     return lower.find("unable to sign in") != std::string::npos;
+}
+
+bool SamlLoginAutomation::isTooManyAttemptsPage(const std::string &html)
+{
+    const std::string lower = lowerCopy(html);
+
+    return contains(lower, "too many attempts")
+        || contains(lower, "too many failed attempts")
+        || contains(lower, "too many sign-in attempts")
+        || contains(lower, "too many signin attempts")
+        || (contains(lower, "temporarily locked")
+            && (contains(lower, "too many") || contains(lower, "attempt")))
+        || (contains(lower, "try again later")
+            && (contains(lower, "too many") || contains(lower, "attempt") || contains(lower, "locked")));
+}
+
+int SamlLoginAutomation::throttleSleepSeconds()
+{
+    const char *value = std::getenv("GPAGENT_SAML_THROTTLE_SLEEP_SECONDS");
+    if (value == nullptr || *value == '\0') {
+        return DEFAULT_SAML_THROTTLE_SLEEP_SECONDS;
+    }
+
+    char *end = nullptr;
+    errno = 0;
+    const long seconds = std::strtol(value, &end, 10);
+    if (errno != 0 || end == value || *end != '\0' || seconds <= 0 || seconds > INT_MAX / 1000) {
+        return DEFAULT_SAML_THROTTLE_SLEEP_SECONDS;
+    }
+
+    return static_cast<int>(seconds);
 }

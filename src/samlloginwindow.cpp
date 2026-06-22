@@ -170,6 +170,12 @@ bool SAMLLoginWindow::tryAutomatedLogin()
         if (!result.toBool()) {
             LOGW << "SAML automation script did not find configured fields";
             webView->page()->toHtml([this] (const QString &html) {
+                if (SamlLoginAutomation::isTooManyAttemptsPage(html.toStdString())) {
+                    LOGW << "SAML automation paused because the identity provider reported too many attempts";
+                    failed = true;
+                    emit fail("ERR004", "Identity provider reported too many login attempts.");
+                    return;
+                }
                 if (SamlLoginAutomation::isRejectedLoginPage(html.toStdString())) {
                     LOGW << "SAML automation stopped after identity provider rejected the submitted credentials";
                     failed = true;

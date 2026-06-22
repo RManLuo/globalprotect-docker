@@ -2,6 +2,7 @@ services:
   globalprotect:
     environment:
       - GPAGENT_AUTO_RECONNECT=1
+      - GPAGENT_PORTAL=<vpn-portal-host>
       - GPAGENT_OP_ITEM=<1password-item-title-or-id>
       - GPAGENT_OP_VAULT=<1password-vault-name-or-id>
       - OP_SERVICE_ACCOUNT_TOKEN_FILE=/run/secrets/op_service_account_token
@@ -11,6 +12,7 @@ services:
       - GPAGENT_LOGIN_PASSWORD_SELECTOR=input[name="credentials.passcode"]
       - GPAGENT_LOGIN_TOTP_SELECTOR=input[name="credentials.passcode"]
       - GPAGENT_LOGIN_SUBMIT_SELECTOR=input[type="submit"]
+      - GPAGENT_SAML_THROTTLE_SLEEP_SECONDS=60
     secrets:
       - op_service_account_token
 
