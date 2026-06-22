@@ -10,6 +10,7 @@
 #include "settingsdialog.h"
 #include "vpn.h"
 #include "gatewayauthenticator.h"
+#include "autoreconnectpolicy.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class GPClient; }
@@ -83,7 +84,9 @@ private:
 
     bool isQuickConnect { false };
     bool isSwitchingGateway { false };
+    bool isExplicitDisconnect { false };
     PortalConfigResponse portalConfig;
+    AutoReconnectPolicy autoReconnectPolicy;
 
     void setupSettings();
 
@@ -97,6 +100,7 @@ private:
     void gatewayLogin();
 
     bool connected() const;
+    void scheduleAutoReconnect();
 
     QList<GPGateway> allGateways() const;
     void setAllGateways(QList<GPGateway> gateways);

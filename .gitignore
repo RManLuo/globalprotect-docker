@@ -1,3 +1,6 @@
 config/com.yuezk.qt/GPClient.conf
 .DS_Store
 .worktrees/
+.secrets/
+.env.local
+docker-compose.auto-reconnect.yml

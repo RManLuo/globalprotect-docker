@@ -1,8 +1,11 @@
 #include <QtGui/QCloseEvent>
+#include <QtCore/QTimer>
+#include <plog/Log.h>
 
 #include "standardloginwindow.h"
 #include "ui_standardloginwindow.h"
 #include "gphelper.h"
+#include "credentialprovider.h"
 
 using namespace gpclient::helper;
 
@@ -17,6 +20,9 @@ StandardLoginWindow::StandardLoginWindow(const QString &portalAddress, const QSt
     ui->authMessage->setText(authMessage);
 
     autocomplete();
+    if (autocompleteFromOnePassword()) {
+        QTimer::singleShot(0, this, &StandardLoginWindow::on_loginButton_clicked);
+    }
 
     setWindowTitle("GlobalProtect Login");
     setFixedSize(width(), height());
@@ -39,6 +45,27 @@ void StandardLoginWindow::autocomplete() {
         ui->username->setText(username);
         ui->password->setText(password);
     }
+}
+
+bool StandardLoginWindow::autocompleteFromOnePassword()
+{
+    const QByteArray enabled = qgetenv("GPAGENT_AUTO_RECONNECT");
+    if (enabled != "1" && enabled.toLower() != "true") {
+        return false;
+    }
+
+    std::string error;
+    const auto credentials = OnePasswordCredentialProvider().fetch(&error);
+    if (!credentials.isValid()) {
+        if (!error.empty()) {
+            LOGW << "1Password credential autofill skipped: " << QString::fromStdString(error);
+        }
+        return false;
+    }
+
+    ui->username->setText(QString::fromStdString(credentials.username));
+    ui->password->setText(QString::fromStdString(credentials.password));
+    return true;
 }
 
 void StandardLoginWindow::setProcessing(bool isProcessing) {

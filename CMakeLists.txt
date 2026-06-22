@@ -29,6 +29,7 @@ find_package(Qt5 REQUIRED COMPONENTS
 )
 
 find_package(Qt5Keychain REQUIRED)
+include(CTest)
 
 add_subdirectory(ThirdParty/inih)
 add_subdirectory(ThirdParty/plog)
@@ -71,3 +72,19 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/com.yuezk.qt.gpclient.desktop" DESTIN
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/com.yuezk.qt.gpclient.svg" DESTINATION share/icons/hicolor/scalable/apps)
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/gp.conf" DESTINATION /etc/gpservice)
 
+if(BUILD_TESTING)
+    enable_testing()
+
+    function(add_gpagent_test target source)
+        add_executable(${target} ${source} ${ARGN})
+        target_include_directories(${target} PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_BINARY_DIR}
+        )
+        add_test(NAME ${target} COMMAND ${target})
+    endfunction()
+
+    add_gpagent_test(credentialprovider_test tests/test_credentialprovider.cpp src/credentialprovider.cpp)
+    add_gpagent_test(autoreconnectpolicy_test tests/test_autoreconnectpolicy.cpp src/autoreconnectpolicy.cpp)
+    add_gpagent_test(samlloginautomation_test tests/test_samlloginautomation.cpp src/samlloginautomation.cpp)
+endif()
