@@ -6,7 +6,7 @@ services:
       - GPAGENT_OP_ITEM=<1password-item-title-or-id>
       - GPAGENT_OP_VAULT=<1password-vault-name-or-id>
       - OP_SERVICE_ACCOUNT_TOKEN_FILE=/run/secrets/op_service_account_token
-
+      # - OP_SERVICE_ACCOUNT_TOKEN=<op-service-account-token>
       # Monash Okta selectors. Adjust these if the login page changes.
       - GPAGENT_LOGIN_USERNAME_SELECTOR=input[name="identifier"]
       - GPAGENT_LOGIN_PASSWORD_SELECTOR=input[name="credentials.passcode"]

@@ -5,10 +5,6 @@ services:
     depends_on:
       - globalprotect
     restart: unless-stopped
-    command: tunnel --no-autoupdate run --token-file /run/secrets/cloudflare_tunnel_token
-    secrets:
-      - cloudflare_tunnel_token
-
-secrets:
-  cloudflare_tunnel_token:
-    file: ${CLOUDFLARED_TUNNEL_TOKEN_FILE:-./.secrets/cloudflare_tunnel_token}
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:?set TUNNEL_TOKEN to your Cloudflare tunnel token}

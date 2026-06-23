@@ -147,6 +147,8 @@ op item get "<1password-item-title-or-id>" --vault "<1password-vault-name-or-id>
 
 The password command intentionally uses `--fields label=password --reveal`. Without `--reveal`, 1Password may return a concealed placeholder instead of the real password.
 
+If Docker secret file permissions are inconvenient on a target host, the GlobalProtect container can also receive the 1Password service account token directly through `OP_SERVICE_ACCOUNT_TOKEN` instead of `OP_SERVICE_ACCOUNT_TOKEN_FILE`. For example, set `OP_SERVICE_ACCOUNT_TOKEN` from an untracked local file or environment before running Compose. Environment variables are easier to inspect than Docker secrets, so prefer the file-based secret when it works on the host.
+
 ### Run with auto-login enabled
 
 ```
@@ -205,18 +207,18 @@ Admin setup:
 1. In the Cloudflare dashboard, go to `Zero Trust` > `Networks` > `Connectors` > `Cloudflare Tunnels`.
 2. Select `Create a tunnel`, choose `Cloudflared`, enter a tunnel name, and save it.
 3. Copy the tunnel token from the generated `cloudflared` install command. Do not commit it.
-4. Store the token locally for the Compose secret:
+4. Store the token locally and pass it to Compose as an environment variable:
 
 ```bash
-mkdir -p .secrets
-printf '%s' '<cloudflare-tunnel-token>' > .secrets/cloudflare_tunnel_token
-chmod 600 .secrets/cloudflare_tunnel_token
+export TUNNEL_TOKEN = "<cloudflare-tunnel-token>"
 docker compose -f docker-compose.yml -f docker-compose.cloudflare.example.yml up -d --build
 ```
 
-5. Wait for the connector to show as healthy in Cloudflare.
-6. Go to `Networking` > `Routes`, select `Create route`, choose `Tunnel CIDR`, select this tunnel, and enter each VPN-private CIDR that should be reachable through the container.
-7. Configure Gateway network policies for the intended users, groups, protocols, and ports. Without restrictive policies, enrolled devices may be able to reach the private routes.
+The Cloudflare example passes the host-side `TUNNEL_TOKEN` value into the container as `TUNNEL_TOKEN`, which is the environment variable read by `cloudflared tunnel run`. 
+
+1. Wait for the connector to show as healthy in Cloudflare.
+2. Go to `Networking` > `Routes`, select `Create route`, choose `Tunnel CIDR`, select this tunnel, and enter each VPN-private CIDR that should be reachable through the container.
+3. Configure Gateway network policies for the intended users, groups, protocols, and ports. Without restrictive policies, enrolled devices may be able to reach the private routes.
 
 Client setup:
 

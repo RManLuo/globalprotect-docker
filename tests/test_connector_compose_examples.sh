@@ -33,10 +33,10 @@ grep -q 'network_mode: "service:globalprotect"' "$cloudflare_file" \
     || fail "Cloudflare sidecar must share the GlobalProtect network namespace"
 grep -q "cloudflare/cloudflared:latest" "$cloudflare_file" \
     || fail "Cloudflare example must use the official cloudflared image"
-grep -q "token-file /run/secrets/cloudflare_tunnel_token" "$cloudflare_file" \
-    || fail "Cloudflare example must use token-file with a Docker secret"
-grep -q "cloudflare_tunnel_token:" "$cloudflare_file" \
-    || fail "Cloudflare example must define the token secret"
+grep -q "TUNNEL_TOKEN=.*TUNNEL_TOKEN" "$cloudflare_file" \
+    || fail "Cloudflare example must require TUNNEL_TOKEN"
+! grep -q "cloudflare_tunnel_token:" "$cloudflare_file" \
+    || fail "Cloudflare example must not define a token secret"
 
 ! grep -q "tailscale:" "$auto_reconnect_example" \
     || fail "auto-reconnect example must not include the Tailscale sidecar"
@@ -75,4 +75,5 @@ TS_ROUTES="10.0.0.0/8" \
 TS_HOSTNAME="globalprotect-vpn-test" \
 docker compose -f "$repo_root/docker-compose.yml" -f "$tailscale_file" config >/dev/null
 
+TUNNEL_TOKEN="test-cloudflare-tunnel-token" \
 docker compose -f "$repo_root/docker-compose.yml" -f "$cloudflare_file" config >/dev/null
