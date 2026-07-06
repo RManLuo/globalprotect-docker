@@ -14,7 +14,7 @@ AutoReconnectPolicy::AutoReconnectPolicy(bool enabled)
 
 bool AutoReconnectPolicy::shouldRetry(bool explicitDisconnect) const
 {
-    return m_enabled && !explicitDisconnect && m_attempts < delays.size();
+    return m_enabled && !explicitDisconnect;
 }
 
 int AutoReconnectPolicy::nextDelaySeconds() const
@@ -27,7 +27,7 @@ int AutoReconnectPolicy::nextDelaySeconds() const
 
 void AutoReconnectPolicy::recordAttempt()
 {
-    if (m_attempts < delays.size()) {
+    if (m_attempts + 1 < delays.size()) {
         m_attempts++;
     }
 }

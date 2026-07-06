@@ -32,7 +32,11 @@ int main()
         policy.recordAttempt();
         require(policy.nextDelaySeconds() == 300, "expected fifth reconnect delay");
         policy.recordAttempt();
-        require(!policy.shouldRetry(false), "policy should stop after retry budget is exhausted");
+        require(policy.shouldRetry(false), "policy should continue retrying at the maximum delay");
+        require(policy.nextDelaySeconds() == 300, "expected retry delay to remain capped");
+        policy.recordAttempt();
+        require(policy.shouldRetry(false), "policy should keep retrying after the maximum delay is reached");
+        require(policy.nextDelaySeconds() == 300, "expected later retry delay to remain capped");
     }
 
     {

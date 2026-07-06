@@ -343,11 +343,15 @@ void GPClient::onPortalConfigFail(const QString msg)
 
 void GPClient::onPortalFail(const QString &msg)
 {
+    updateConnectionStatus(VpnStatus::disconnected);
+
+    if (scheduleAutoReconnect()) {
+        return;
+    }
+
     if (!msg.isEmpty()) {
         openMessageBox("Portal authentication failed.", msg);
     }
-
-    updateConnectionStatus(VpnStatus::disconnected);
 }
 
 void GPClient::tryGatewayLogin()
@@ -417,11 +421,15 @@ void GPClient::onGatewayFail(const QString &msg)
         return;
     }
 
+    updateConnectionStatus(VpnStatus::disconnected);
+
+    if (scheduleAutoReconnect()) {
+        return;
+    }
+
     if (!msg.isEmpty()) {
         openMessageBox("Gateway authentication failed.", msg);
     }
-
-    updateConnectionStatus(VpnStatus::disconnected);
 }
 
 void GPClient::activate()
@@ -530,10 +538,10 @@ void GPClient::onVPNDisconnected()
     isExplicitDisconnect = false;
 }
 
-void GPClient::scheduleAutoReconnect()
+bool GPClient::scheduleAutoReconnect()
 {
     if (portal().isEmpty() || !autoReconnectPolicy.shouldRetry(isExplicitDisconnect)) {
-        return;
+        return false;
     }
 
     const int delaySeconds = autoReconnectPolicy.nextDelaySeconds();
@@ -547,11 +555,16 @@ void GPClient::scheduleAutoReconnect()
             doConnect();
         }
     });
+
+    return true;
 }
 
 void GPClient::onVPNError(QString errorMessage)
 {
     updateConnectionStatus(VpnStatus::disconnected);
+    if (scheduleAutoReconnect()) {
+        return;
+    }
     openMessageBox("Failed to connect", errorMessage);
 }
 

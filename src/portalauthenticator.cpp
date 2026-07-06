@@ -166,7 +166,7 @@ void PortalAuthenticator::onSAMLLoginSuccess(const QMap<QString, QString> samlRe
 
 void PortalAuthenticator::onSAMLLoginFail(const QString &code, const QString &msg)
 {
-    if (code == "ERR004" && attempts < MAX_ATTEMPTS) {
+    if (code == "ERR004") {
         const int delaySeconds = SamlLoginAutomation::throttleSleepSeconds();
         LOGW << "Identity provider throttled portal SAML login; restarting from prelogin in "
              << delaySeconds << " seconds";

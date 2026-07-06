@@ -100,7 +100,7 @@ private:
     void gatewayLogin();
 
     bool connected() const;
-    void scheduleAutoReconnect();
+    bool scheduleAutoReconnect();
 
     QList<GPGateway> allGateways() const;
     void setAllGateways(QList<GPGateway> gateways);
