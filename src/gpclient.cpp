@@ -6,6 +6,7 @@
 #include "gphelper.h"
 #include "ui_gpclient.h"
 #include "portalauthenticator.h"
+#include "portalconfigcriteria.h"
 #include "gatewayauthenticator.h"
 #include "settingsdialog.h"
 #include "gatewayauthenticatorparams.h"
@@ -260,8 +261,10 @@ void GPClient::doConnect()
     if (btnText.endsWith("Connect")) {
         settings::save("portal", portal);
 
-        // Login to the previously saved gateway
-        if (!currentGateway().name().isEmpty()) {
+        const bool mustRefreshPortalConfig = PortalConfigCriteria::hasCertificatePemFile();
+
+        // Certificate-based portal config selection must run before gateway login.
+        if (!currentGateway().name().isEmpty() && !mustRefreshPortalConfig) {
             LOGI << "Start gateway login using the previously saved gateway...";
             isQuickConnect = true;
             gatewayLogin();
@@ -321,8 +324,25 @@ void GPClient::onPortalSuccess(const PortalConfigResponse portalConfig, const QS
         return;
     }
 
-    GPGateway gateway = filterPreferredGateway(portalConfig.allGateways(), region);
-    setAllGateways(portalConfig.allGateways());
+    QList<GPGateway> gateways = portalConfig.allGateways();
+    GPGateway gateway = filterPreferredGateway(gateways, region);
+    const QString preferredGatewayAddress = QString::fromLocal8Bit(qgetenv("GPAGENT_PREFERRED_GATEWAY_ADDRESS"));
+    if (!preferredGatewayAddress.isEmpty()) {
+        const QString preferredGatewayName = QString::fromLocal8Bit(qgetenv("GPAGENT_PREFERRED_GATEWAY_NAME"));
+        for (const GPGateway &candidate : gateways) {
+            if (candidate.address() == preferredGatewayAddress) {
+                gateway = candidate;
+                break;
+            }
+        }
+        if (gateway.address() != preferredGatewayAddress) {
+            gateway.setAddress(preferredGatewayAddress);
+            gateway.setName(preferredGatewayName.isEmpty() ? preferredGatewayAddress : preferredGatewayName);
+            gateways.append(gateway);
+        }
+        LOGI << "Using preferred gateway override: " << gateway.name() << " (" << gateway.address() << ")";
+    }
+    setAllGateways(gateways);
     setCurrentGateway(gateway);
     this->portalConfig = portalConfig;
 

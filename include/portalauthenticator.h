@@ -40,6 +40,7 @@ private:
     QString clientos;
     QString preloginUrl;
     QString configUrl;
+    QString cscConfigUrl;
     QString username;
     QString password;
 
@@ -47,6 +48,7 @@ private:
     PreloginResponse preloginResponse;
 
     bool isAutoLogin{ false };
+    bool isFetchingCscConfig{ false };
 
     StandardLoginWindow *standardLoginWindow { nullptr };
 
@@ -54,6 +56,7 @@ private:
     void normalAuth();
     void samlAuth();
     void fetchConfig(QString username, QString password, QString preloginCookie = "", QString userAuthCookie = "");
+    QByteArray cscRequestParams(const QByteArray &portalConfigXml) const;
     void emitFail(const QString& msg = "");
 };
 

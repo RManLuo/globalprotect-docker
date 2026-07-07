@@ -95,6 +95,91 @@ esac
 # HIP report sent by an official GlobalProtect client.
 HOST_ID="0854cb08-06a8-4551-b57b-400e6c76b5d5"
 if [ -z "$APP_VERSION" ]; then APP_VERSION=6.3.3-638; fi
+if [ -z "$HIP_CERTIFICATE_PEM_FILE" ]; then HIP_CERTIFICATE_PEM_FILE=/root/hip-certificates.pem; fi
+
+xml_escape() {
+	sed \
+		-e 's/&/\&amp;/g' \
+		-e 's/</\&lt;/g' \
+		-e 's/>/\&gt;/g' \
+		-e 's/"/\&quot;/g' \
+		-e "s/'/\&apos;/g"
+}
+
+emit_empty_certificate_category() {
+	cat <<EOF
+		<entry name="certificate">
+			<list/>
+		</entry>
+EOF
+}
+
+emit_certificate_category() {
+	if [ ! -s "$HIP_CERTIFICATE_PEM_FILE" ]; then
+		emit_empty_certificate_category
+		return
+	fi
+
+	if ! command -v openssl >/dev/null 2>&1; then
+		echo "openssl is required to include HIP certificate details" >&2
+		emit_empty_certificate_category
+		return
+	fi
+
+	CERT_TMPDIR=$(mktemp -d "${TMPDIR:-/tmp}/hip-certs.XXXXXX") || {
+		emit_empty_certificate_category
+		return
+	}
+
+	awk -v dir="$CERT_TMPDIR" '
+		/-----BEGIN CERTIFICATE-----/ {
+			n++
+			out = sprintf("%s/cert-%04d.pem", dir, n)
+			in_cert = 1
+		}
+		in_cert {
+			print > out
+		}
+		/-----END CERTIFICATE-----/ {
+			close(out)
+			in_cert = 0
+		}
+	' "$HIP_CERTIFICATE_PEM_FILE"
+
+	cat <<EOF
+		<entry name="certificate">
+			<list>
+EOF
+
+	CERT_COUNT=0
+	for CERT_FILE in "$CERT_TMPDIR"/cert-*.pem; do
+		[ -f "$CERT_FILE" ] || continue
+		SUBJECT=$(openssl x509 -in "$CERT_FILE" -noout -subject -nameopt compat 2>/dev/null | sed 's/^subject=//')
+		[ -n "$SUBJECT" ] || SUBJECT="/CN=unknown"
+		CERT_COUNT=$((CERT_COUNT + 1))
+		cat <<EOF
+				<entry>
+					<subject>$(printf '%s' "$SUBJECT" | xml_escape)</subject>
+					<pem>
+EOF
+		sed 's/^/						/' "$CERT_FILE"
+		cat <<EOF
+					</pem>
+				</entry>
+EOF
+	done
+
+	rm -rf "$CERT_TMPDIR"
+
+	if [ "$CERT_COUNT" -eq 0 ]; then
+		echo "No PEM certificates found in $HIP_CERTIFICATE_PEM_FILE" >&2
+	fi
+
+	cat <<EOF
+			</list>
+		</entry>
+EOF
+}
 
 # Timestamp in the format expected by GlobalProtect server
 NOW=$(date +'%m/%d/%Y %H:%M:%S')
@@ -334,6 +419,7 @@ cat <<EOF
 		<entry name="data-loss-prevention">
 			<list/>
 		</entry>
+$(emit_certificate_category)
 	</categories>
 </hip-report>
 EOF

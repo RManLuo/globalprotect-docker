@@ -1,5 +1,7 @@
 #include <QtNetwork/QNetworkReply>
+#include <QtCore/QSysInfo>
 #include <QtCore/QTimer>
+#include <QtCore/QUrl>
 #include <plog/Log.h>
 
 #include "portalauthenticator.h"
@@ -8,17 +10,39 @@
 #include "samlloginwindow.h"
 #include "samlloginautomation.h"
 #include "loginparams.h"
+#include "portalconfigcriteria.h"
 #include "preloginresponse.h"
 #include "portalconfigresponse.h"
 #include "gpgateway.h"
 
 using namespace gpclient::helper;
 
+namespace
+{
+QByteArray formItem(const QString &key, const QString &value)
+{
+    QByteArray item;
+    item.append(QUrl::toPercentEncoding(key));
+    item.append('=');
+    item.append(QUrl::toPercentEncoding(value));
+    return item;
+}
+
+void addFormItem(QByteArray &form, const QString &key, const QString &value)
+{
+    if (!form.isEmpty()) {
+        form.append('&');
+    }
+    form.append(formItem(key, value));
+}
+}
+
 PortalAuthenticator::PortalAuthenticator(const QString& portal, const QString& clientos) : QObject()
   , portal(portal)
   , clientos(clientos)
   , preloginUrl("https://" + portal + "/global-protect/prelogin.esp?tmp=tmp&kerberos-support=yes&ipv6-support=yes&clientVer=4100")
   , configUrl("https://" + portal + "/global-protect/getconfig.esp")
+  , cscConfigUrl("https://" + portal + "/global-protect/getconfig_csc.esp")
 {
     if (!clientos.isEmpty()) {
         preloginUrl = preloginUrl + "&clientos=" + clientos;
@@ -199,6 +223,7 @@ void PortalAuthenticator::fetchConfig(QString username, QString password, QStrin
 
     LOGI << "Fetching the portal config from " << configUrl;
 
+    isFetchingCscConfig = false;
     auto *reply = createRequest(configUrl, loginParams.toUtf8());
     connect(reply, &QNetworkReply::finished, this, &PortalAuthenticator::onFetchConfigFinished);
 }
@@ -220,11 +245,27 @@ void PortalAuthenticator::onFetchConfigFinished()
         } else {
             emit portalConfigFailed("Failed to fetch the portal config.");
         }
+        delete reply;
         return;
     }
 
     LOGI << "Fetch the portal config succeeded.";
-    PortalConfigResponse response = PortalConfigResponse::parse(reply->readAll());
+    const QByteArray responseXml = reply->readAll();
+
+    if (!isFetchingCscConfig) {
+        const QByteArray cscParams = cscRequestParams(responseXml);
+        if (!cscParams.isEmpty()) {
+            LOGI << "Portal config contains config selection criteria; fetching CSC portal config from "
+                 << cscConfigUrl << " with " << cscParams.size() << " bytes of form data";
+            isFetchingCscConfig = true;
+            auto *cscReply = createRequest(cscConfigUrl, cscParams);
+            connect(cscReply, &QNetworkReply::finished, this, &PortalAuthenticator::onFetchConfigFinished);
+            delete reply;
+            return;
+        }
+    }
+
+    PortalConfigResponse response = PortalConfigResponse::parse(responseXml);
 
     // Add the username & password to the response object
     response.setUsername(username);
@@ -238,6 +279,55 @@ void PortalAuthenticator::onFetchConfigFinished()
     }
 
     emit success(response, preloginResponse.region());
+    delete reply;
+}
+
+QByteArray PortalAuthenticator::cscRequestParams(const QByteArray &portalConfigXml) const
+{
+    const PortalConfigCriteria criteria = PortalConfigCriteria::parse(portalConfigXml);
+    if (!criteria.requiresCscRequest()) {
+        return QByteArray();
+    }
+
+    const QByteArray cscData = criteria.cscData();
+    if (cscData.isEmpty()) {
+        LOGW << "Portal config requires CSC data, but no certificate CSC data could be generated";
+        return QByteArray();
+    }
+
+    auto osVersion = settings::get("os-version", "").toString();
+    if (osVersion.isEmpty()) {
+        osVersion = QSysInfo::prettyProductName();
+    }
+
+    QString hostId = QString::fromLocal8Bit(qgetenv("GPAGENT_HOST_ID"));
+    if (hostId.isEmpty()) {
+        hostId = QString::fromLocal8Bit(QSysInfo::machineUniqueId());
+    }
+
+    const QString serialNo = QString::fromLocal8Bit(qgetenv("GPAGENT_SERIALNO"));
+
+    QByteArray params;
+    addFormItem(params, "user", username);
+    addFormItem(params, "clientVer", "4100");
+    addFormItem(params, "clientos", clientos);
+    addFormItem(params, "os-version", osVersion);
+    addFormItem(params, "hostid", hostId);
+    addFormItem(params, "serialno", serialNo);
+    addFormItem(params, "portal-cc-auth-cookie", criteria.portalCscAuthCookie());
+    addFormItem(params, "portal-csc-auth-cookie", criteria.portalCscAuthCookie());
+    addFormItem(params, "config-digest", criteria.configDigest());
+    addFormItem(params, "csc-digest", criteria.cscDigest());
+    addFormItem(params, "csc-data", QString::fromUtf8(cscData));
+    addFormItem(params, "swg-auth-token", "");
+    addFormItem(params, "swg-nonce", "0");
+
+    LOGI << "Prepared portal CSC request: auth cookie present="
+         << (!criteria.portalCscAuthCookie().isEmpty())
+         << ", config digest present=" << (!criteria.configDigest().isEmpty())
+         << ", csc data bytes=" << cscData.size();
+
+    return params;
 }
 
 void PortalAuthenticator::emitFail(const QString& msg)

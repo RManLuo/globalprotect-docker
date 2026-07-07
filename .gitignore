@@ -1,4 +1,5 @@
 config/com.yuezk.qt/GPClient.conf
+config/hip-certificates.pem
 .DS_Store
 .worktrees/
 .secrets/

@@ -1,4 +1,5 @@
 #include <QtCore/QUrlQuery>
+#include <QtCore/QSysInfo>
 
 #include "loginparams.h"
 #include "gphelper.h"
@@ -22,6 +23,8 @@ LoginParams::LoginParams(const QString clientos)
     if (!clientos.isEmpty()) {
         params.addQueryItem("clientos", clientos);
     }
+    const QString clientGpVersion = QString::fromLocal8Bit(qgetenv("GPAGENT_CLIENTGPVERSION"));
+    params.addQueryItem("clientgpversion", clientGpVersion.isEmpty() ? "6.3.3-638" : clientGpVersion);
 
     auto osVersion = settings::get("os-version", "").toString();
     if (osVersion.isEmpty()) {
@@ -33,6 +36,18 @@ LoginParams::LoginParams(const QString clientos)
     params.addQueryItem("portal-prelogonuserauthcookie", "");
     params.addQueryItem("prelogin-cookie", "");
     params.addQueryItem("ipv6-support", "yes");
+
+    QString hostId = QString::fromLocal8Bit(qgetenv("GPAGENT_HOST_ID"));
+    if (hostId.isEmpty()) {
+        hostId = QString::fromLocal8Bit(QSysInfo::machineUniqueId());
+    }
+    params.addQueryItem("host-id", hostId);
+
+    const QString serialNo = QString::fromLocal8Bit(qgetenv("GPAGENT_SERIALNO"));
+    params.addQueryItem("serialno", serialNo);
+    params.addQueryItem("csc-digest", "");
+    params.addQueryItem("config-digest", "");
+    params.addQueryItem("csc-support", "yes");
 }
 
 LoginParams::~LoginParams()
@@ -72,6 +87,31 @@ void LoginParams::setPreloginCookie(const QString cookie)
 void LoginParams::setInputStr(const QString inputStr)
 {
     updateQueryItem("inputStr", inputStr);
+}
+
+void LoginParams::setHostId(const QString hostId)
+{
+    updateQueryItem("host-id", hostId);
+}
+
+void LoginParams::setSerialNo(const QString serialNo)
+{
+    updateQueryItem("serialno", serialNo);
+}
+
+void LoginParams::setConfigDigest(const QString digest)
+{
+    updateQueryItem("config-digest", digest);
+}
+
+void LoginParams::setCscDigest(const QString digest)
+{
+    updateQueryItem("csc-digest", digest);
+}
+
+void LoginParams::setCscSupport(const QString support)
+{
+    updateQueryItem("csc-support", support);
 }
 
 QByteArray LoginParams::toUtf8() const

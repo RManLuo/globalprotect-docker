@@ -134,6 +134,120 @@ secrets:
 
 The password and TOTP pages both use `input[name="credentials.passcode"]`; the automation decides which value to fill based on the visible page context. If the identity-provider page changes or automation cannot find a field, open noVNC at `http://localhost:8083` and complete or inspect the login there.
 
+### Monash SOE certificate identity
+
+Some Monash accounts are assigned to the SOE on-demand gateway only after the GlobalProtect portal verifies a device/user certificate identity. The official GlobalProtect client does this before gateway selection by submitting certificate data in the portal Config Selection Criteria (CSC) request, and then later includes the same certificate list in the HIP report.
+
+This project supports the same flow with a local PEM bundle:
+
+1. Export the matching certificate identity from macOS Keychain.
+2. Mount the PEM bundle into the container.
+3. Configure the client to present a macOS-like GlobalProtect profile.
+4. Run the normal portal login so the CSC request can select the SOE gateway.
+
+Keep all certificate bundles, serial numbers, host IDs, tokens, cookies, and generated config files out of git. `config/hip-certificates.pem` is ignored by default.
+
+#### Export the certificate bundle
+
+On the Mac that has the working official GlobalProtect setup, find the expected identity common name:
+
+```bash
+security find-identity -v
+```
+
+Look for the common name that the official client shows under Host Information Profile > `certificate`, for example a value like `<username-or-device>.ad.monash.edu`. Export matching identities into the local PEM bundle:
+
+```bash
+scripts/export-hip-certificates.sh "<certificate-common-name>" config/hip-certificates.pem
+chmod 600 config/hip-certificates.pem
+```
+
+The exporter matches identities from `security find-identity -v`, looks up the same certificates with `security find-certificate`, and writes a PEM bundle that the container can read. Check only non-sensitive metadata when troubleshooting:
+
+```bash
+grep -c 'BEGIN CERTIFICATE' config/hip-certificates.pem
+openssl x509 -in config/hip-certificates.pem -noout -subject -issuer -dates -fingerprint
+```
+
+#### Configure the local Compose file
+
+Add the PEM bundle mount and certificate path to your untracked local Compose file:
+
+```yaml
+services:
+  globalprotect:
+    volumes:
+      - ./config/hip-certificates.pem:/root/hip-certificates.pem:ro
+    environment:
+      - HIP_CERTIFICATE_PEM_FILE=/root/hip-certificates.pem
+```
+
+For Monash SOE, the local configuration can also pin the gateway that the official client selects:
+
+```yaml
+services:
+  globalprotect:
+    environment:
+      - GPAGENT_PREFERRED_GATEWAY_ADDRESS=od-staff-soe.gp.monash.edu
+      - GPAGENT_PREFERRED_GATEWAY_NAME=on-demand-soe-gateway
+```
+
+If your portal checks device profile details, set these values only in the local Compose file with values from the machine that owns the certificate:
+
+```yaml
+services:
+  globalprotect:
+    environment:
+      - GPAGENT_CLIENTGPVERSION=6.3.3-638
+      - GPAGENT_SERIALNO=<local-device-serial-number>
+      - GPAGENT_HOST_ID=<local-device-host-id-or-mac-address>
+```
+
+Do not commit those local values. They identify the device and may be treated as private by the VPN policy.
+
+#### Configure the GlobalProtect client profile
+
+The portal request should look like the working official macOS client. You can set this through the GUI Settings dialog, or edit the local config file mounted at `config/com.yuezk.qt/GPClient.conf`:
+
+```ini
+[General]
+clientos=Mac
+os-version=macOS 15.5
+```
+
+Use the macOS version from the machine you are matching. If the official client is upgraded, keep `APP_VERSION` and `GPAGENT_CLIENTGPVERSION` aligned with the official GlobalProtect version that works for the portal.
+
+#### Run and verify
+
+Start the local stack with the local Compose file:
+
+```bash
+docker compose -f docker-compose.local.yml down
+docker compose -f docker-compose.local.yml up -d --build globalprotect
+docker compose -f docker-compose.local.yml logs -f globalprotect
+```
+
+If SAML automation cannot find the current identity-provider fields, open noVNC at `http://localhost:8083` and complete the Okta/MFA login manually.
+
+Successful SOE selection usually shows these checkpoints in the logs:
+
+- Portal prelogin succeeds.
+- The portal config contains CSC data and the client requests `/global-protect/getconfig_csc.esp`.
+- The selected gateway is `on-demand-soe-gateway` / `od-staff-soe.gp.monash.edu`.
+- Gateway login succeeds and `openconnect` starts.
+- The tunnel receives an IPv4 address in the expected SOE pool, for example `10.44.16.1` through `10.44.31.254`.
+
+You can also verify from inside the running container:
+
+```bash
+docker compose -f docker-compose.local.yml exec globalprotect pgrep -a openconnect
+docker compose -f docker-compose.local.yml exec globalprotect ifconfig tun0
+docker compose -f docker-compose.local.yml exec globalprotect pgrep -a danted
+docker compose -f docker-compose.local.yml exec globalprotect netstat -lntp | grep -E '(:1080|:8083)'
+```
+
+If the connection falls back to a non-SOE address pool, refresh the certificate bundle, confirm the common name matches the official HIP certificate entry, and compare the selected gateway and client profile values with the official client.
+
 ### Verify 1Password access
 
 Check the configured item before starting the container. Do not print the password or TOTP value in logs or issue reports.
